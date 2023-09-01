@@ -1,11 +1,12 @@
-from env import get_env_list
+from _env import get_env_list
 from minimaotai.base import MaoTai
 
 """
 贵盐黔品-小程序茅台预约，跑脚本需要实名和绑定手机号
 @:param 环境变量: GYQP: username=xxx;token=xxx 多账号使用&隔开
 抓包: https://gw.huiqunchina.com域名下请求头中X-access-token的值
-cron 0 12 * * *
+cron: 0 12 * * *
+new Env('遵航出山');
 """
 
 

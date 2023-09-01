@@ -1,17 +1,40 @@
 import datetime
 import json
-import logging
 import math
 import os
 import random
-import re
 import time
 import uuid
 
 import requests
 
-from imaotai import config
-from imaotai.encrypt import Encrypt
+from Crypto.Cipher import AES
+import base64
+
+"""
+
+cron: 0 12 * * *
+new Env('I茅台');
+"""
+ITEM_MAP = {
+    "10213": "53%vol 500ml贵州茅台酒（癸卯兔年）",
+    "10214": "53%vol 375ml×2贵州茅台酒（癸卯兔年）",
+    "10056": "53%vol 500ml茅台1935",
+    "2478": "53%vol 500ml贵州茅台酒（珍品）"
+}
+
+# 需要预约的商品(默认只预约2个兔茅)
+########################
+ITEM_CODES = ['10213', '10214']
+# 预约规则配置
+########################
+# 预约本市出货量最大的门店
+MAX_ENABLED = True
+# 预约你的位置附近门店
+DISTANCE_ENABLED = False
+########################
+
+#########################################################################
 
 AES_KEY = 'qbhajinldepmucsonaaaccgypwuvcjaa'
 AES_IV = '2018534749963515'
@@ -96,9 +119,9 @@ def get_location_count(province: str, city: str, item_code: str, p_c_map: dict,
             f'get_location_count : params : {day_time}, response code : {responses.status_code}, response body : {responses.text}')
     shops = responses.json()['data']['shops']
 
-    if config.MAX_ENABLED:
+    if MAX_ENABLED:
         return max_shop(city, item_code, p_c_map, province, shops)
-    if config.DISTANCE_ENABLED:
+    if DISTANCE_ENABLED:
         return distance_shop(city, item_code, p_c_map, province, shops, source_data, lat, lng)
 
 
@@ -153,6 +176,43 @@ def distance_shop(city,
         return temp_list[0][1]
     else:
         return '0'
+
+
+class Encrypt:
+    def __init__(self, key, iv):
+        self.key = key.encode('utf-8')
+        self.iv = iv.encode('utf-8')
+        self.coding = ""
+
+    # @staticmethod
+    def pkcs7padding(self, text):
+        """明文使用PKCS7填充 """
+        bs = 16
+        length = len(text)
+        bytes_length = len(text.encode('utf-8'))
+        padding_size = length if (bytes_length == length) else bytes_length
+        padding = bs - padding_size % bs
+        padding_text = chr(padding) * padding
+        self.coding = chr(padding)
+        return text + padding_text
+
+    def aes_encrypt(self, content):
+        """ AES加密 """
+        cipher = AES.new(self.key, AES.MODE_CBC, self.iv)
+        # 处理明文
+        content_padding = self.pkcs7padding(content)
+        # 加密
+        encrypt_bytes = cipher.encrypt(content_padding.encode('utf-8'))
+        # 重新编码
+        result = str(base64.b64encode(encrypt_bytes), encoding='utf-8')
+        return result
+
+    def aes_decrypt(self, content):
+        """AES解密 """
+        cipher = AES.new(self.key, AES.MODE_CBC, self.iv)
+        content = base64.b64decode(content)
+        text = cipher.decrypt(content).decode('utf-8')
+        return text.rstrip(self.coding)
 
 
 _encrypt = Encrypt(key=AES_KEY, iv=AES_IV)
@@ -323,7 +383,7 @@ def main():
             if not is_login:
                 continue
 
-            for item in config.ITEM_CODES:
+            for item in ITEM_CODES:
                 max_shop_id = get_location_count(province=province,
                                                  city=city,
                                                  item_code=item,
@@ -335,7 +395,7 @@ def main():
                 if max_shop_id == '0':
                     continue
                 shop_info = source_data.get(str(max_shop_id))
-                title = config.ITEM_MAP.get(item)
+                title = ITEM_MAP.get(item)
                 print(f'商品：{title}, 门店：{shop_info["name"]}')
                 reservation_params = act_params(max_shop_id, item)
                 txt = reservation(reservation_params, phone)

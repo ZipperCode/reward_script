@@ -6,7 +6,7 @@ from minimaotai.base import MaoTai
 @:param 环境变量: XLHG: username=xxx;token=xxx 多账号使用&隔开
 抓包: https://gw.huiqunchina.com域名下请求头中X-access-token的值
 cron: 0 12 * * *
-new Env('遵航出山');
+new Env('新联惠购');
 """
 
 

@@ -6,6 +6,10 @@ import time
 
 import requests
 
+GMT = "%a, %d %b %Y %H:%M:%S GMT"
+
+FMT = "%Y-%m-%d %H:%M:%S"
+
 
 def signature(method: str, url: str, ak: str, sk: str, date_time: str) -> str:
     """
@@ -18,11 +22,6 @@ def signature(method: str, url: str, ak: str, sk: str, date_time: str) -> str:
 
 def digest(body: str, sk: str) -> str:
     return str(base64.b64encode(hmac.new(sk.encode(), body.encode(), "sha256").digest()).decode())
-
-
-GMT = "%a, %d %b %Y %H:%M:%S GMT"
-
-FMT = "%Y-%m-%d %H:%M:%S"
 
 
 def to_fmt(t: int) -> str:

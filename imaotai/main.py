@@ -200,7 +200,6 @@ def reservation(params: dict, mobile: str):
     return responses.text
 
 
-
 def select_geo(i: str):
     # https://www.piliang.tech/geocoding-amap
     resp = requests.get(f"https://www.piliang.tech/api/amap/geocode?address={i}")
@@ -265,7 +264,6 @@ def check_login():
     return is_login
 
 
-
 PHONE_KEY = "phone"
 PROVINCE_KEY = "province"
 CITY_KEY = "city"
@@ -300,6 +298,7 @@ def _init_account():
 
     print(f"====================共{len(account_dicts)}个I茅台账号=========\n")
     print(f"==========脚本执行- 北京时间(UTC+8)：{time.strftime('%Y/%m/%d %H:%M:%S', time.localtime())}============\n")
+
 
 def main():
     _init_account()
@@ -346,6 +345,7 @@ def main():
         except Exception as e:
             print(e)
             _send(f"账号{phone}执行失败, {str(e)}")
+
 
 if __name__ == "__main__":
     main()

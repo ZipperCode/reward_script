@@ -254,9 +254,6 @@ def pushplus_bot(title, content):
         print(e)
 
 
-print("xxxxxxxxxxxx")
-
-
 def wecom_key(title, content):
     print("\n")
     if not QYWX_KEY:

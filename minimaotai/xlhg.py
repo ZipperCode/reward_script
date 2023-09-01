@@ -1,5 +1,5 @@
 """
-新联惠购-小程序茅台预约，跑脚本需要实名和绑定手机号
+航旅黔购-小程序茅台预约，跑脚本需要实名和绑定手机号
 @:param 环境变量: XLHG: username=xxx;token=xxx 多账号使用&隔开，username随意，仅用作通知
 抓包: https://gw.huiqunchina.com域名下请求头中X-access-token的值
 cron: 0 12 * * *

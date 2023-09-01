@@ -1,5 +1,5 @@
 from env import get_env_list
-from minimaotai.base import MaoTai
+from minimaotai.__base import MaoTai
 
 """
 遵航出山-小程序茅台预约，跑脚本需要实名和绑定手机号

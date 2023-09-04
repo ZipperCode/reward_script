@@ -1,8 +1,10 @@
 """
-new Env('阅龙湾');
+new Env('歌画东阳');
 抓包：https://vapp.tmuyun.com/ 任意-请求头中 x-session-id 或使用 手机号#密码 两者互不影响
 cron: 0 12 * * *
-变量：TMUYUN_YLW='session_id=xxx' 多个账号用 & 分隔
+变量：TMUYUN_GHDY='session_id=xxx' 多个账号用 & 分隔
+
+兑换商店主要是
 """
 import base64
 import hashlib
@@ -20,7 +22,7 @@ from Crypto.PublicKey import RSA
 
 from env import get_env_list
 
-APP_ID = 51
+APP_ID = 49
 SALT = "FR*r!isE5W"
 
 HEADER2 = {
@@ -35,19 +37,17 @@ HEADER2 = {
     'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
 }
 
-REF_CODE = 'WSWHMJ'
+REF_CODE = 'WSEH4G'
 
 CONTENTS = [
     "好", "支持", '赞', '越来越好'
 ]
 
 CHANNEL_IDS = [
-    "62c53767373c550ecabd9d6a ",
-    "6327c414ad61a4052a4a2a12",
-    "62c537afde224a0ebdf0fe7c",
-    "62c537bc373c550ecabd9d6c",
-    "63318faafe3fc1537e56b6e2",
-    "62c537a1fe3fc1538430e59a"
+    "6254f12dfe3fc10794f7b25c",
+    "625687a5b40eef302342d234",
+    "62d50dddad61a469da575d61",
+    "6344c522ad61a42fff4dd90a",
 ]
 
 PUB_KEY = """
@@ -99,7 +99,6 @@ class TmuYun:
                 self.account_detail()
                 self.number_center()
                 self.account_detail()
-
                 self.invite()
             else:
                 self._log("授权失败，请填写正确的session_id 或者账号密码")
@@ -269,7 +268,7 @@ class TmuYun:
                 ids = self.channel()
                 if len(ids) < 0:
                     ids = self.channel(True)
-                if len(ids) < 0:
+                if len(ids) <= 0:
                     self._log("【任务失败】为获取到可用的文章列表")
                     continue
                 for i in range(finish_times, frequency):
@@ -381,12 +380,12 @@ class TmuYun:
         # print(response.text)
 
     def invite(self):
-        if self.ref_code == 'WSEH4G':
+        if self.ref_code == REF_CODE:
             return
         random_time(0, 4)
         url = "https://vapp.tmuyun.com/api/account/update_ref_code"
 
-        payload = f'ref_code=WSWHMJ'
+        payload = f'ref_code={REF_CODE}'
         headers = self._get_header("/api/account/update_ref_code")
         headers['Content-Type'] = 'application/x-www-form-urlencoded'
 
@@ -418,7 +417,7 @@ class TmuYun:
             'X-TIMESTAMP': self._timestamp,
             'X-SIGNATURE': self._sign,
             'X-TENANT-ID': str(APP_ID),
-            'User-Agent': '1.7.5;00000000-646f-9305-0000-00005083af4d;Xiaomi POCO F2 Pro;Android;13;huawei',
+            'User-Agent': '5.0.7.0.0;00000000-699e-06dd-ffff-ffffe89dcf4b;Xiaomi 22011211C;Android;13;Release',
             'X-ACCOUNT-ID': str(self.account_id),
             'Cache-Control': 'no-cache',
             'Host': 'vapp.tmuyun.com',
@@ -432,18 +431,18 @@ class TmuYun:
 
 
 def main():
-    print("===============🔔阅龙湾, 开始!===============\n")
-    accounts = get_env_list("TMUYUN_YLW")
+    print("===============🔔歌画东阳, 开始!===============\n")
+    accounts = get_env_list("TMUYUN_GHDY")
     print("=============================================")
     print(f"脚本执行 - 北京时间：{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}")
     print("=============================================")
-    print("===============📣共有 {len(accounts)} 个账号===============\n")
+    print(f"===============📣共有 {len(accounts)} 个账号===============\n")
     for index, account in enumerate(accounts):
         print(f">>>> 开始运行第 {index + 1} 个账号")
         _session_id = account.get("session_id")
         TmuYun(session=_session_id).run()
 
-    print("===============🔔阅龙湾, 脚本运行完成!===============\n")
+    print("===============🔔歌画东阳, 脚本运行完成!===============")
 
 
 if __name__ == "__main__":

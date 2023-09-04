@@ -1,8 +1,8 @@
 """
-new Env('阅龙湾');
+new Env('爱海盐');
 抓包：https://vapp.tmuyun.com/ 任意-请求头中 x-session-id 或使用 手机号#密码 两者互不影响
 cron: 0 12 * * *
-变量：TMUYUN_YLW='session_id=xxx' 多个账号用 & 分隔
+变量：TMUYUN_AHY='session_id=xxx' 多个账号用 & 分隔
 """
 import base64
 import hashlib
@@ -20,8 +20,10 @@ from Crypto.PublicKey import RSA
 
 from env import get_env_list
 
-APP_ID = 51
+APP_ID = 60
 SALT = "FR*r!isE5W"
+REF_CODE = "WS8Q2Z"
+USER_AGENT = "3.0.40.0;00000000-646f-9305-ffff-ffffaf79aeba;Xiaomi POCO F2 Pro;Android;13;Release"
 
 HEADER2 = {
     "Accept": "application/json, text/plain, */*",
@@ -35,19 +37,15 @@ HEADER2 = {
     'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
 }
 
-REF_CODE = 'WSWHMJ'
-
 CONTENTS = [
-    "好", "支持", '赞', '越来越好'
+    "好", "支持", '赞', '越来越好', '好活动', '太幸福了吧'
 ]
 
 CHANNEL_IDS = [
-    "62c53767373c550ecabd9d6a ",
-    "6327c414ad61a4052a4a2a12",
-    "62c537afde224a0ebdf0fe7c",
-    "62c537bc373c550ecabd9d6c",
-    "63318faafe3fc1537e56b6e2",
-    "62c537a1fe3fc1538430e59a"
+    "63552eddfe3fc1680f583c1c",
+    "638db7fcad61a46468dec750",
+    "63573b82a8a2e804c44a0055",
+    "638f22e2c2fc4f18cffcbc9b",
 ]
 
 PUB_KEY = """
@@ -88,7 +86,7 @@ class TmuYun:
 
     def run(self):
         try:
-            self._log("==开始运行脚本==")
+            self._log("==开始运行==")
             if not self.init_app():
                 self._log("初始化App失败，停止运行")
                 return
@@ -104,7 +102,7 @@ class TmuYun:
             else:
                 self._log("授权失败，请填写正确的session_id 或者账号密码")
         finally:
-            self._log("==运行脚本完成==")
+            self._log("==运行完成==")
 
     def init_app(self):
         url = "https://passport.tmuyun.com/web/init?client_id=10008"
@@ -254,7 +252,7 @@ class TmuYun:
             d = bj_date_time.strftime("%Y-%m-%d")
             sign_list = list(resp.get('data').get('daily_sign_info').get('daily_sign_list'))
             for s in sign_list:
-                if s.get('date') == d:
+                if s.get('current') == '今天':
                     self._log(f"当前时间为：{d}, 是否签到 【{'是' if s.get('signed') else '否'}】")
                     if not s.get('signed'):
                         self.sign()
@@ -381,12 +379,12 @@ class TmuYun:
         # print(response.text)
 
     def invite(self):
-        if self.ref_code == 'WSEH4G':
+        if self.ref_code == REF_CODE:
             return
         random_time(0, 4)
         url = "https://vapp.tmuyun.com/api/account/update_ref_code"
 
-        payload = f'ref_code=WSWHMJ'
+        payload = f'ref_code={REF_CODE}'
         headers = self._get_header("/api/account/update_ref_code")
         headers['Content-Type'] = 'application/x-www-form-urlencoded'
 
@@ -418,7 +416,7 @@ class TmuYun:
             'X-TIMESTAMP': self._timestamp,
             'X-SIGNATURE': self._sign,
             'X-TENANT-ID': str(APP_ID),
-            'User-Agent': '1.7.5;00000000-646f-9305-0000-00005083af4d;Xiaomi POCO F2 Pro;Android;13;huawei',
+            'User-Agent': USER_AGENT,
             'X-ACCOUNT-ID': str(self.account_id),
             'Cache-Control': 'no-cache',
             'Host': 'vapp.tmuyun.com',
@@ -432,18 +430,18 @@ class TmuYun:
 
 
 def main():
-    print("===============🔔阅龙湾, 开始!===============\n")
-    accounts = get_env_list("TMUYUN_YLW")
-    print("=============================================")
+    print("===============🔔爱海盐, 开始!===============\n")
+    accounts = get_env_list("TMUYUN_AHY")
+    print("============================================")
     print(f"脚本执行 - 北京时间：{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}")
-    print("=============================================")
-    print("===============📣共有 {len(accounts)} 个账号===============\n")
+    print("============================================")
+    print(f"===============📣共有 {len(accounts)} 个账号===============\n")
     for index, account in enumerate(accounts):
-        print(f">>>> 开始运行第 {index + 1} 个账号")
+        print(f">>>> 开始运行第 {index + 1} 个账号\n")
         _session_id = account.get("session_id")
         TmuYun(session=_session_id).run()
 
-    print("===============🔔阅龙湾, 脚本运行完成!===============\n")
+    print("=======🔔爱海盐, 脚本运行完成!=======")
 
 
 if __name__ == "__main__":

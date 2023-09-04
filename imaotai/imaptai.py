@@ -31,7 +31,7 @@ ITEM_CODES = ['10213', '10214']
 # 预约本市出货量最大的门店
 MAX_ENABLED = True
 # 预约你的位置附近门店
-DISTANCE_ENABLED = False
+DISTANCE_ENABLED = True
 ########################
 
 #########################################################################
@@ -102,7 +102,7 @@ def get_current_session_id():
 
 def _send(msg):
     try:
-        from sendNotify import send
+        from notify import send
         send("I茅台", msg)
     except:
         print(f"通知失败，通知模块不存在: {msg}")

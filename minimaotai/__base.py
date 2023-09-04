@@ -273,7 +273,7 @@ class MaoTai:
 
     def _send_msg(self, msg):
         try:
-            from sendNotify import send
+            from notify import send
             send(f"{self.app_name}-{self.username}", msg)
         except Exception as e:
             print(e)

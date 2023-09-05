@@ -1,8 +1,9 @@
 """
-new Env('爱临安');
+new Env('百观');
 抓包：https://vapp.tmuyun.com/ 任意-请求头中 x-session-id 或使用 手机号#密码 两者互不影响
-cron: 0 12 * * *
+cron: * 8 * * *
 变量：TMUYUN_ALA='session_id=xxx' 多个账号用 & 分隔
+撸一撸兑换
 """
 import base64
 import hashlib
@@ -40,7 +41,7 @@ HEADER2 = {
 }
 
 CONTENTS = [
-    "好", "支持", '赞', '越来越好', '好活动', '太幸福了吧'
+    "好", "支持", '赞', '越来越好', '好活动', '太幸福了吧', '打卡', "加油", '积极点赞', '积极参与'
 ]
 
 CHANNEL_IDS = [
@@ -259,6 +260,19 @@ class TmuYun:
                 frequency = task.get('frequency')
                 task_id = task.get('id')
                 member_task_type = task.get('member_task_type')
+                if member_task_type == 16 or member_task_type == 13 or member_task_type == 15:
+                    continue
+                # if member_task_type == 15:
+                #     thread_list = self.available_thread_ids(frequency - finish_times)
+                #     for i in range(finish_times, frequency):
+                #         self._log("【开始任务】" + task.get('name') + ", " + str(i) + "/" + str(frequency))
+                #         if len(thread_list) > 0:
+                #             t_id = thread_list.pop()
+                #             self.forum_like(t_id)
+                #             if i % 2 == 0:
+                #                 self.forum_comment(t_id)
+                #     continue
+
                 ids = self.channel()
                 if len(ids) < 0:
                     ids = self.channel(True)
@@ -297,12 +311,12 @@ class TmuYun:
         headers = self._get_header("/api/app_version/detail")
         try:
             response = requests.request("GET", url, headers=headers, data=payload)
-            print(response.text)
             if response.status_code != 200:
                 return
 
             resp = json.loads(response.content)
             if resp and resp.get('code') == 0:
+                self._log("当前app版本：" + str(resp.get('data').get('latest').get('version')))
                 self._user_agent = resp.get('data').get('latest').get('version') + USER_AGENT_PREFIX
             else:
                 self._user_agent = DEF_VERSION + USER_AGENT_PREFIX
@@ -404,6 +418,127 @@ class TmuYun:
         headers['Content-Type'] = 'application/x-www-form-urlencoded'
 
         requests.request("POST", url, headers=headers, data=payload)
+
+    def available_thread_ids(self, count):
+        forum_ids = self.forum_list()
+        if len(forum_ids) < 0:
+            return []
+
+        res_list = []
+        for i in range(0, count):
+            thread_ids = self.forum_thread_list(random.choice(forum_ids))
+            for t in thread_ids:
+                res_list.append(t)
+            if len(res_list) > count:
+                break
+
+        return res_list
+
+    def forum_list(self):
+        url = f"https://vapp.tmuyun.com/api/forum/forum_list?tenantId={APP_ID}"
+        payload = {}
+        headers = self._get_header("/api/forum/forum_list")
+        dict.update(headers, {
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 13; POCO F2 Pro Build/TQ3A.230705.001; wv) AppleWebKit/537.36 '
+                          '(KHTML, like Gecko) Version/4.0 Chrome/115.0.5790.136 Mobile '
+                          'Safari/537.36;xsb_shangyu;xsb_shangyu;2.2.7;native_app;',
+            'Sec-Fetch-Site': 'same-origin',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Dest': 'empty',
+            'Accept': '*/*',
+            'Origin': 'https://vapp.tmuyun.com',
+            'X-Requested-With': 'com.headline.ipn',
+            'Accept-Encoding': 'gzip, deflate',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+        })
+
+        response = requests.request("GET", url, headers=headers, data=payload)
+
+        if response.status_code != 200:
+            return []
+
+        resp = json.loads(response.content)
+        if resp and resp.get('code') == 0:
+            return list(map(lambda x: x.get('id'), list(resp.get('data').get('forum_list'))))
+
+        return []
+
+    def forum_thread_list(self, forum_id):
+
+        url = f"https://vapp.tmuyun.com/api/forum/thread_list?forum_id={forum_id}"
+        payload = {}
+        headers = self._get_header("/api/forum/thread_list")
+        dict.update(headers, {
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 13; POCO F2 Pro Build/TQ3A.230705.001; wv) AppleWebKit/537.36 '
+                          '(KHTML, like Gecko) Version/4.0 Chrome/115.0.5790.136 Mobile '
+                          'Safari/537.36;xsb_shangyu;xsb_shangyu;2.2.7;native_app;',
+            'Sec-Fetch-Site': 'same-origin',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Dest': 'empty',
+            'Accept': '*/*',
+            'Origin': 'https://vapp.tmuyun.com',
+            'X-Requested-With': 'com.headline.ipn',
+            'Accept-Encoding': 'gzip, deflate',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+        })
+        response = requests.request("GET", url, headers=headers, data=payload)
+        if response.status_code != 200:
+            return []
+
+        resp = json.loads(response.content)
+        if resp and resp.get('code') == 0:
+            thread_list = resp.get('data').get('thread_list')
+            if thread_list:
+                thread_list = filter(lambda x: not x.get('already_liked'), list(thread_list))
+                return list(map(lambda x: x.get('id'), thread_list))
+
+        return []
+
+    def forum_like(self, target_id):
+        self._log("forum_like " + str(target_id))
+        url = "https://vapp.tmuyun.com/api/forum/like"
+        random_time(0, 4)
+
+        files = {
+            'target_type': (None, '1'), 'target_id': (None, target_id)
+        }
+        headers = self._get_header("/api/forum/like")
+        dict.update(headers, {
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 13; POCO F2 Pro Build/TQ3A.230705.001; wv) AppleWebKit/537.36 '
+                          '(KHTML, like Gecko) Version/4.0 Chrome/115.0.5790.136 Mobile '
+                          'Safari/537.36;xsb_shangyu;xsb_shangyu;2.2.7;native_app;',
+            'Sec-Fetch-Site': 'same-origin',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Dest': 'empty',
+            'Accept': '*/*',
+            'Origin': 'https://vapp.tmuyun.com',
+            'X-Requested-With': 'com.headline.ipn',
+            'Accept-Encoding': 'gzip, deflate',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+            #'Content-Type': 'multipart/form-data; boundary=----WebKitFormBoundarygl5Db5TddbAZYzbl'
+        })
+        response = requests.request("POST", url, headers=headers, files=files)
+
+    def forum_comment(self, thread_id):
+        url = "https://vapp.tmuyun.com/api/forum/post_comment"
+        random_time(0, 4)
+        files = {'thread_id': (None, thread_id), 'content': (None, random.choice(CONTENTS))}
+        headers = self._get_header("/api/forum/post_comment")
+        dict.update(headers, {
+            'User-Agent': 'Mozilla/5.0 (Linux; Android 13; POCO F2 Pro Build/TQ3A.230705.001; wv) AppleWebKit/537.36 '
+                          '(KHTML, like Gecko) Version/4.0 Chrome/115.0.5790.136 Mobile '
+                          'Safari/537.36;xsb_shangyu;xsb_shangyu;2.2.7;native_app;',
+            'Sec-Fetch-Site': 'same-origin',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Dest': 'empty',
+            'Accept': '*/*',
+            'Origin': 'https://vapp.tmuyun.com',
+            'X-Requested-With': 'com.headline.ipn',
+            'Accept-Encoding': 'gzip, deflate',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+            #'Content-Type': 'multipart/form-data; boundary=----WebKitFormBoundarygl5Db5TddbAZYzbl'
+        })
+        response = requests.request("POST", url, headers=headers, files=files)
 
     def _get_sign(self, type_id):
         self._timestamp = str(int(time.time() * 1000))

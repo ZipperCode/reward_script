@@ -1,3 +1,13 @@
+"""
+航旅黔购-小程序茅台预约，跑脚本需要实名和绑定手机号
+@:param 环境变量: LGKX: username=xxx;token=xxx 多账号使用&隔开，username随意，仅用作通知
+抓包: https://gw.huiqunchina.com域名下请求头中X-access-token的值
+cron: 0 9 * * 2,4,6
+new Env('航旅黔购');
+"""
+import sys
+
+from env import get_env_list
 import base64
 import datetime
 import hmac
@@ -293,9 +303,31 @@ class MaoTai:
             print(f"通知失败，通知模块不存在: {msg}")
 
 
+class Lgkx(MaoTai):
+
+    def __init__(self, username, token):
+        super().__init__("wx613ba8ea6a002aa8", "乐港空巷", username, token)
+
+
+def run():
+    app = "乐港空巷"
+    print(f"===============🔔{app}, 开始!===============\n")
+    accounts = get_env_list("LGKX")
+    print("=============================================")
+    print(f"脚本执行 - 北京时间：{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}")
+    print("=============================================")
+    print(f"===============📣共有 {len(accounts)} 个账号===============\n")
+    sys.stdout.flush()
+    for index, account in enumerate(accounts):
+        print(f">>>> 开始运行第 {index + 1} 个账号")
+        sys.stdout.flush()
+        username = account.get("username")
+        token = account.get("token")
+        Lgkx(username, token).run()
+
+    print(f"===============🔔{app}, 脚本运行完成!===============\n")
+    sys.stdout.flush()
+
+
 if __name__ == "__main__":
-    # Thu, 31 Aug 2023 13:59:48 GMT
-    print(encrypt("POST", "/front-manager/api/customer/queryById/token", {
-        "channel": "h5"
-    }, 0, "39414a3d423249ffb2fec95915fd9ac6", "634143d4f5b08349fa83d92366e19fc1"))
-    print()
+    run()

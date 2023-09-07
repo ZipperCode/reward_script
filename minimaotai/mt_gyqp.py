@@ -1,14 +1,13 @@
-from env import get_env_list
-from minimaotai.__base import MaoTai
-
 """
-遵航出山-小程序茅台预约，跑脚本需要实名和绑定手机号
-@:param 环境变量: ZHCS: username=xxx;token=xxx 多账号使用&隔开，username随意，仅用作通知
+贵盐黔品-小程序茅台预约，跑脚本需要实名和绑定手机号
+@:param 环境变量: GYQP: username=xxx;token=xxx 多账号使用&隔开，username随意，仅用作通知
 抓包: https://gw.huiqunchina.com域名下请求头中X-access-token的值
-cron: 0 12 * * *
-new Env('遵航出山');
+cron: 0 9 * * 2,4,6
+new Env('贵盐黔品');
 """
+import sys
 
+from env import get_env_list
 import base64
 import datetime
 import hmac
@@ -113,7 +112,7 @@ class MaoTai:
             self._has_error = True
             return
         resp = json.loads(response.content)
-        self.log("resp = " + str(resp))
+
         if resp and resp.get("code") == "10000":
             data = resp.get("data")
             self._ak = data.get("ak")
@@ -149,7 +148,7 @@ class MaoTai:
         success = len(resp) > 0 and resp.get("code") == "10000"
         if success:
             data = resp.get("data")
-            if data is dict and len(data) > 0:
+            if isinstance(data, dict):
                 self._status = data.get("status")
                 self._is_real_name_auth = data.get("isRealNameAuth", False)
                 self._phone_is_bind = data.get("phoneIsBind", False)
@@ -168,7 +167,7 @@ class MaoTai:
         if resp.get("code") != "10000":
             return None
         data = resp.get("data")
-        if not data or data is not dict:
+        if not data or not isinstance(data, dict):
             return None
         name = data.get("name")
         act_id = data.get("id", 0)
@@ -199,8 +198,8 @@ class MaoTai:
 活动编号        = {act_id}
 活动名称        = {name}
 是否预约        = {"是" if (is_appoint == 1) else "否"}
-服务时间        = {to_fmt(sys_current_time)}
-本地时间        = {to_fmt(time.time_ns())}
+服务时间        = {to_fmt(int(sys_current_time))}
+本地时间        = {to_fmt(int(time.time() * 1000))}
 活动时间        = {to_fmt(start_time)} ~ {to_fmt(end_time)}
 预约人数        = {appoint_counts}
 预约时间        = {to_fmt(appoint_start_time)} ~ {to_fmt(appoint_end_time)}
@@ -218,7 +217,9 @@ class MaoTai:
         }
         body = json.dumps(body)
         resp = self._post(url, body)
+
         if resp.get("code") != "10000":
+            self.log("检查失败: 已经预约")
             return False
         self.log(str(resp))
         return True
@@ -226,8 +227,15 @@ class MaoTai:
     def appoint(self, activity_id):
         if not self._enable():
             return
-        if self._check_consumer(activity_id):
+        if not self._check_consumer(activity_id):
             return
+
+        cur = time.time() * 1000
+
+        if cur not in range(self._act_appoint_start, self._act_appoint_end):
+            self.log("预约失败，不在活动时间")
+            return
+
         url = "/front-manager/api/customer/promotion/appoint"
         body = {
             "activityId": activity_id,
@@ -235,7 +243,11 @@ class MaoTai:
         }
         body = json.dumps(body)
         resp = self._post(url, body)
-        self.log(str(resp))
+        if resp and resp.get("code") == '10000':
+            self.log("预约成功")
+            self._send_msg("预约成功")
+        else:
+            self.log(str(resp.get("message")))
 
     def _post(self, url: str, body: str) -> dict:
         headers = {}
@@ -254,7 +266,6 @@ class MaoTai:
             s_time = resp.get("serverTimeStamp")
             c_time = int(time.time() * 1000)
             self._between_time = s_time - c_time
-        print("resp = " + str(resp))
         return resp
 
     def run(self):
@@ -278,6 +289,7 @@ class MaoTai:
             self._send_msg("账号未绑定手机，请先绑定手机")
             return
         self.channel_activity()
+        self.appoint(self._act_id)
 
     def log(self, msg):
         print(f"{to_fmt(int(time.time() * 1000))}:【{self.app_name}-{self.username}】" + msg)
@@ -291,19 +303,30 @@ class MaoTai:
             print(f"通知失败，通知模块不存在: {msg}")
 
 
-class Zhcs(MaoTai):
+class Gyqp(MaoTai):
 
     def __init__(self, username, token):
-        super().__init__("wx624149b74233c99a", "遵航出山", username, token)
+        super().__init__("wx5508e31ffe9366b8", "贵盐黔品", username, token)
 
 
 def run():
-    account_list = get_env_list("ZHCS")
-
-    for account in account_list:
+    app = "贵盐黔品"
+    print(f"===============🔔{app}, 开始!===============\n")
+    accounts = get_env_list("GYQP")
+    print("=============================================")
+    print(f"脚本执行 - 北京时间：{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}")
+    print("=============================================")
+    print(f"===============📣共有 {len(accounts)} 个账号===============\n")
+    sys.stdout.flush()
+    for index, account in enumerate(accounts):
+        print(f">>>> 开始运行第 {index + 1} 个账号")
+        sys.stdout.flush()
         username = account.get("username")
         token = account.get("token")
-        Zhcs(username, token).run()
+        Gyqp(username, token).run()
+
+    print(f"===============🔔{app}, 脚本运行完成!===============\n")
+    sys.stdout.flush()
 
 
 if __name__ == "__main__":

@@ -94,8 +94,8 @@ class Xjsp:
             return
 
         data = resp.get('data')
-        if data is not dict:
-            self._log("index#data is not dict")
+        if not isinstance(data, dict):
+            self._log("index#not isinstance(data, dict)")
             return
 
         self.user = data.get('user')
@@ -229,8 +229,8 @@ class Xjsp:
             return
 
         data = resp.get('data')
-        if data is not dict:
-            self._log("login#data is not dict")
+        if not isinstance(data, dict):
+            self._log("login#not isinstance(data, dict)")
             return
         xxx_api_auth = data.get('xxx_api_auth')
 

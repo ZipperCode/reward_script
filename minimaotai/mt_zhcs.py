@@ -7,7 +7,7 @@ from env import get_env_list
 @:param 环境变量: ZHCS: username=xxx;token=xxx 多账号使用&隔开，username随意，仅用作通知
 抓包: https://gw.huiqunchina.com域名下请求头中X-access-token的值
 cron: 0 9 * * 2,4,6
-new Env('遵航出山');
+new Env('茅台-遵航出山');
 """
 
 import base64

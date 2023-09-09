@@ -257,7 +257,7 @@ class Xjsp:
         return self.token
 
     def _log(self, msg):
-        print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} : {msg}")
+        print(f"{time.strftime('%H:%M:%S', time.localtime())} : {msg}")
 
 
 if __name__ == "__main__":

@@ -2,7 +2,7 @@
 new Env('百观');
 抓包：https://vapp.tmuyun.com/ 任意-请求头中 x-session-id 或使用 手机号#密码 两者互不影响
 cron: * 8 * * *
-变量：TMUYUN_ALA='session_id=xxx' 多个账号用 & 分隔
+变量：TMUYUN_ALA='session_id=xxx;[invite=0]' 多个账号用 & 分隔 默认助力作者设置invite变量 = 0 或者不设置invite变量后不助力
 撸一撸兑换
 """
 import base64
@@ -66,11 +66,12 @@ def random_time(start=7, end=15):
 
 class TmuYun:
 
-    def __init__(self, phone: str = None, pwd: str = None, session=None):
+    def __init__(self, phone: str = None, pwd: str = None, session=None, is_invite=True):
         self.phone = phone
         self.pwd = pwd
         self.session_id = session
         self.account_id = ''
+        self.is_invite = is_invite
         self._timestamp = int(time.time() * 1000)
         self._request_id = uuid.uuid1()
         self._sign = ''
@@ -257,7 +258,7 @@ class TmuYun:
 
             for task in user_task_list:
                 finish_times = task.get('finish_times')
-                frequency = task.get('frequency')
+                frequency = task.get('frequency') + 1
                 task_id = task.get('id')
                 member_task_type = task.get('member_task_type')
                 if member_task_type == 16 or member_task_type == 13 or member_task_type == 15:
@@ -408,7 +409,7 @@ class TmuYun:
         # print(response.text)
 
     def invite(self):
-        if self.ref_code == REF_CODE:
+        if self.ref_code == REF_CODE or not self.is_invite:
             return
         random_time(0, 4)
         url = "https://vapp.tmuyun.com/api/account/update_ref_code"
@@ -576,7 +577,7 @@ class TmuYun:
         }
 
     def _log(self, msg):
-        print(f"{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())} 【{self.phone}】: {msg}")
+        print(f"{time.strftime('%H:%M:%S', time.localtime())} 【{self.phone}】: {msg}")
 
 
 def main():
@@ -589,7 +590,12 @@ def main():
     for index, account in enumerate(accounts):
         print(f">>>> 开始运行第 {index + 1} 个账号\n")
         _session_id = account.get("session_id")
-        TmuYun(session=_session_id).run()
+        invite = account.get("invite")
+        if invite and invite == "0":
+            invite = False
+        else:
+            invite = True
+        TmuYun(session=_session_id, is_invite=invite).run()
 
     print("=======🔔百观, 脚本运行完成!=======")
 

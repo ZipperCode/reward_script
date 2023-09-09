@@ -1,9 +1,3 @@
-"""
-new Env('爱海盐');
-抓包：https://vapp.tmuyun.com/ 任意-请求头中 x-session-id 或使用 手机号#密码 两者互不影响
-cron: 0 12 * * *
-变量：TMUYUN_AHY='session_id=xxx;[invite=0]' 多个账号用 & 分隔 默认助力作者设置invite变量 = 0 或者不设置invite变量后不助力
-"""
 import base64
 import hashlib
 import json
@@ -11,6 +5,7 @@ import random
 import time
 import urllib
 import uuid
+from abc import ABCMeta
 from datetime import datetime, timezone, timedelta
 from urllib.parse import urlencode
 
@@ -18,34 +13,11 @@ import requests
 from Crypto.Cipher import PKCS1_v1_5
 from Crypto.PublicKey import RSA
 
-from env import get_env_list
-
-APP_ID = 60
 SALT = "FR*r!isE5W"
-REF_CODE = "WS8Q2Z"
-USER_AGENT = "3.0.40.0;00000000-646f-9305-ffff-ffffaf79aeba;Xiaomi POCO F2 Pro;Android;13;Release"
-
-HEADER2 = {
-    "Accept": "application/json, text/plain, */*",
-    "User-Agent": 'Mozilla/5.0 (Linux; Android 13; POCO F2 Pro Build/TQ3A.230705.001; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/115.0.5790.136 Mobile Safari/537.36;xsb_longwan;xsb_longwan;1.7.5;native_app',
-    'X-Requested-With': 'net.lwnews.www',
-    'Sec-Fetch-Site': 'same-origin',
-    'Sec-Fetch-Mode': 'cors',
-    'Sec-Fetch-Dest': 'empty',
-    'Referer': f'https://vapp.tmuyun.com/webFunction/userCenter?tenantId={APP_ID}&gaze_control=023&isCompleteSign=-1',
-    'Accept-Encoding': 'gzip, deflate',
-    'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
-}
+USER_AGENT_PREFIX = ";00000000-646f-9305-ffff-ffffd01e6034;Xiaomi POCO F2 Pro;Android;13;Release"
 
 CONTENTS = [
-    "好", "支持", '赞', '越来越好', '好活动', '太幸福了吧'
-]
-
-CHANNEL_IDS = [
-    "63552eddfe3fc1680f583c1c",
-    "638db7fcad61a46468dec750",
-    "63573b82a8a2e804c44a0055",
-    "638f22e2c2fc4f18cffcbc9b",
+    "好", "支持", '赞', '越来越好', '好活动', '太幸福了吧', '打卡', "加油", '积极点赞', '积极参与'
 ]
 
 PUB_KEY = """
@@ -64,11 +36,16 @@ def random_time(start=7, end=15):
     time.sleep(random.randint(start, end))
 
 
-class TmuYun:
+class TmuYun(metaclass=ABCMeta):
+    app_id = 0
+    package_name = ''
+    app_version = ''
+    channel_ids = []
+    _user_agent = app_version + USER_AGENT_PREFIX
+    ref_core = ''
 
-    def __init__(self, phone: str = None, pwd: str = None, session=None, is_invite=True):
-        self.phone = phone
-        self.pwd = pwd
+    def __init__(self, session, is_invite=True, ):
+
         self.session_id = session
         self.account_id = ''
         self.is_invite = is_invite
@@ -88,15 +65,10 @@ class TmuYun:
     def run(self):
         try:
             self._log("==开始运行==")
-            if not self.init_app():
-                self._log("初始化App失败，停止运行")
-                return
-            if not self.session_id:
-                self._log("不存在session_id，使用账号密码授权")
-                self.credential_auth()
             if self.session_id and self.session_id != '':
-                self.account_detail()
-                self.number_center()
+                self.get_version()
+                if self.account_detail():
+                    self.number_center()
                 self.account_detail()
 
                 self.invite()
@@ -105,90 +77,9 @@ class TmuYun:
         finally:
             self._log("==运行完成==")
 
-    def init_app(self):
-        url = "https://passport.tmuyun.com/web/init?client_id=10008"
-
-        payload = {}
-        headers = {
-            'Cache-Control': 'no-cache',
-            'User-Agent': 'ANDROID;13;10008;1.7.5;1.0;null;POCO F2 Pro',
-            'X-REQUEST-ID': str(uuid.uuid1()),
-            'Connection': 'Keep-Alive'
-        }
-
-        response = requests.request("GET", url, headers=headers, data=payload)
-
-        if response.status_code == 200:
-            resp = json.loads(response.content)
-            self._signature_key = resp.get('data').get('client').get('signature_key')
-            return True
-        return False
-
-    def credential_auth(self):
-        if not self.phone or not self.pwd:
-            return
-        b = {
-            "client_id": "10008",
-            "phone_number": self.phone
-        }
-
-        url = f"https://passport.tmuyun.com/web/account/check_phone_number?{urllib.parse.urlencode(b)}"
-
-        uu = str(uuid.uuid1())
-        headers = {
-            'Cache-Control': 'no-cache',
-            'User-Agent': 'ANDROID;13;10008;1.7.5;1.0;null;POCO F2 Pro',
-            'X-REQUEST-ID': str(uuid.uuid1()),
-            'X-SIGNATURE': self._get_sign2('get', '/web/account/check_phone_number', b, uu),
-            'Connection': 'Keep-Alive',
-            'Cookie': 'acw_tc=76b20ff316937358283984637e7541529591ea6463841acd587b0142257b0f',
-            'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-        }
-
-        response = requests.request("GET", url, headers=headers)
-        print("check = " + response.text)
-        if response.status_code == 200:
-            resp = json.loads(response.content)
-            if resp and resp.get('code') == 0:
-                if not resp.get('data').get('exist'):
-                    self._log("手机号校验失败，不存在此账号")
-                    return
-
-        url = "https://passport.tmuyun.com/web/oauth/credential_auth"
-        body = {
-            'client_id': "10008",
-            'phone_number': self.phone,
-            'password': encode_pwd(self.pwd)
-        }
-        dict.update(headers, {
-            'X-SIGNATURE': self._get_sign2('post', '/web/oauth/credential_auth', body, uu)
-        })
-        response = requests.post(url, data=body, headers=headers)
-        print(response.text)
-        if response.status_code != 200:
-            self._auth_status = False
-            return
-        resp = json.loads(response.content)
-        if resp and resp.get('code') == 0:
-            code = resp.get('data').get('authorization_code').get('code')
-            url = "https://vapp.tmuyun.com/api/zbtxz/login"
-            # TODO 网易防破解
-            check_token = ''
-            payload = f'check_token={check_token}&code={code}&token=&type=-1&union_id='
-            headers = self._get_header("/api/zbtxz/login")
-            dict.update(headers, HEADER2)
-            response = requests.request("POST", url, headers=headers, data=payload)
-            print(response.text)
-            if response.status_code != 200:
-                self._auth_status = False
-                return
-            resp = json.loads(response.content)
-            if resp and resp.get('code') == 0:
-                self.session_id = resp.get('data').get('session').get('id')
-
     def channel(self, ignored_read=False):
         random_time(1, 3)
-        channel_id = random.choice(CHANNEL_IDS)
+        channel_id = random.choice(TmuYun.channel_ids)
         url = (f"https://vapp.tmuyun.com/api/article/channel_list?channel_id={channel_id}&isDiFangHao=false"
                "&is_new=true&list_count=0&size=50")
         payload = {}
@@ -222,49 +113,61 @@ class TmuYun:
 
         if response.status_code != 200:
             self.account_id = ''
-            return
+            return False
         resp = json.loads(response.content)
 
         if resp and resp.get('code') == 0:
             self.account_id = resp.get('data').get('rst').get('id')
-            self.phone = resp.get('data').get('rst').get('mobile')
-            self._integral = resp.get('data').get('rst').get('total_integral')
-            grade = resp.get('data').get('rst').get('grade')
-            grade_name = resp.get('data').get('rst').get('grade_name')
-            self.ref_code = resp.get('data').get('rst').get('ref_code')
-            self._log("当前积分 = " + str(self._integral) + ", 等级 = " + str(grade) + "-" + grade_name)
+            self.mobile = resp.get('data').get('rst').get('mobile')
+            try:
+                self.account_id = resp.get('data').get('rst').get('id')
+                self._integral = resp.get('data').get('rst').get('total_integral')
+                grade = resp.get('data').get('rst').get('grade')
+                grade_name = resp.get('data').get('rst').get('grade_name')
+                self.ref_code = resp.get('data').get('rst').get('ref_code')
+                self._log("当前积分 = " + str(self._integral) + ", 等级 = " + str(grade) + "-" + grade_name)
+            except:
+                self._log("没有积分等级数据")
+            finally:
+                return True
+        else:
+            self._log("失败，" + resp.get('message'))
+            return False
 
     def number_center(self):
         url = "https://vapp.tmuyun.com/api/user_mumber/numberCenter?is_new=1"
-
         payload = {}
         headers = self._get_header("/api/user_mumber/numberCenter")
-        dict.update(headers, HEADER2)
-
+        dict.update(headers, self._get_header2())
         response = requests.request("GET", url, headers=headers, data=payload)
-
         if response.status_code != 200:
             return
 
         resp = json.loads(response.content)
         if resp and resp.get('code') == 0:
-            bj_date_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(
-                timezone(timedelta(hours=8), name='Asia/Shanghai'))
-            d = bj_date_time.strftime("%Y-%m-%d")
-            sign_list = list(resp.get('data').get('daily_sign_info').get('daily_sign_list'))
-            for s in sign_list:
-                if s.get('current') == '今天':
-                    self._log(f"当前时间为：{d}, 是否签到 【{'是' if s.get('signed') else '否'}】")
-                    if not s.get('signed'):
-                        self.sign()
-
-            user_task_list = list(resp.get('data').get('rst').get('user_task_list'))
+            try:
+                bj_date_time = datetime.utcnow().replace(tzinfo=timezone.utc).astimezone(
+                    timezone(timedelta(hours=8), name='Asia/Shanghai'))
+                d = bj_date_time.strftime("%Y-%m-%d")
+                sign_list = list(resp.get('data').get('daily_sign_info').get('daily_sign_list'))
+                for s in sign_list:
+                    if s.get('current') == '今天':
+                        self._log(f"当前时间为：{d}, 是否签到 【{'是' if s.get('signed') else '否'}】")
+                        if not s.get('signed'):
+                            self.sign()
+            except:
+                self._log("可能没有日常签到流程")
+                self.sign()
+            user_task_list = self.get_task_list(resp.get('data').get('rst').get('user_task_list'))
 
             for task in user_task_list:
                 finish_times = task.get('finish_times')
                 frequency = task.get('frequency') + 1
                 task_id = task.get('id')
                 member_task_type = task.get('member_task_type')
+                if member_task_type == 16 or member_task_type == 13 or member_task_type == 15:
+                    continue
+
                 ids = self.channel()
                 if len(ids) < 0:
                     ids = self.channel(True)
@@ -297,13 +200,51 @@ class TmuYun:
                         continue
                     self.do_task(member_task_type, str(article_id))
 
+    def get_task_list(self, task_list):
+        if task_list and len(task_list) > 0:
+            return task_list
+        url = "https://vapp.tmuyun.com/api/user_center/task?type=1&current=1&size=20"
+
+        payload = {}
+        headers = self._get_header("/api/user_center/task")
+        dict.update(headers, self._get_header2())
+
+        response = requests.request("GET", url, headers=headers, data=payload)
+
+        if response.status_code != 200:
+            return []
+
+        resp = json.loads(response.content)
+        if resp and resp.get('code') == 0:
+            return resp.get('data').get('list')
+        return []
+
+    def get_version(self):
+        url = "https://vapp.tmuyun.com/api/app_version/detail"
+        payload = {}
+        headers = self._get_header("/api/app_version/detail")
+        try:
+            response = requests.request("GET", url, headers=headers, data=payload)
+            if response.status_code != 200:
+                return
+
+            resp = json.loads(response.content)
+            if resp and resp.get('code') == 0:
+                self._log("当前app版本：" + str(resp.get('data').get('latest').get('version')))
+                TmuYun.app_version = resp.get('data').get('latest').get('version')
+        except:
+            pass
+        finally:
+            TmuYun._user_agent = TmuYun.app_version + USER_AGENT_PREFIX
+            self._log("user_agent = " + str(TmuYun._user_agent))
+
     def sign(self):
         self._log("【开始签到】")
         url = "https://vapp.tmuyun.com/api/user_mumber/sign"
 
         payload = {}
         headers = self._get_header("/api/user_mumber/sign")
-        dict.update(headers, HEADER2)
+        dict.update(headers, self._get_header2())
         response = requests.request("GET", url, headers=headers, data=payload)
         if response.status_code != 200:
             return
@@ -380,12 +321,12 @@ class TmuYun:
         # print(response.text)
 
     def invite(self):
-        if self.ref_code == REF_CODE or not self.is_invite:
+        if self.ref_code == TmuYun.ref_core or not self.is_invite:
             return
         random_time(0, 4)
         url = "https://vapp.tmuyun.com/api/account/update_ref_code"
 
-        payload = f'ref_code={REF_CODE}'
+        payload = f'ref_code={TmuYun.ref_core}'
         headers = self._get_header("/api/account/update_ref_code")
         headers['Content-Type'] = 'application/x-www-form-urlencoded'
 
@@ -396,8 +337,8 @@ class TmuYun:
         self._request_id = str(uuid.uuid1())
         self._sign = (
             hashlib.sha256(
-                f"{type_id}&&{self.session_id}&&{self._request_id}&&{self._timestamp}&&{SALT}&&{APP_ID}".encode(
-                    'utf-8'))
+                f"{type_id}&&{self.session_id}&&{self._request_id}&&{self._timestamp}&&{SALT}&&{TmuYun.app_id}"
+                .encode('utf-8'))
             .hexdigest())
 
     def _get_sign2(self, m, url, params: dict, uu_id):
@@ -416,8 +357,8 @@ class TmuYun:
             'X-REQUEST-ID': self._request_id,
             'X-TIMESTAMP': self._timestamp,
             'X-SIGNATURE': self._sign,
-            'X-TENANT-ID': str(APP_ID),
-            'User-Agent': USER_AGENT,
+            'X-TENANT-ID': str(TmuYun.app_id),
+            'User-Agent': self._user_agent,
             'X-ACCOUNT-ID': str(self.account_id),
             'Cache-Control': 'no-cache',
             'Host': 'vapp.tmuyun.com',
@@ -426,29 +367,23 @@ class TmuYun:
             # 'Cookie': self.cookie
         }
 
+    def _get_header2(self):
+        p = ''
+        if TmuYun.package_name and TmuYun.package_name != '':
+            p = TmuYun.package_name.rsplit(".")[-1]
+        return {
+            "Accept": "application/json, text/plain, */*",
+            "User-Agent": 'Mozilla/5.0 (Linux; Android 13; POCO F2 Pro Build/TQ3A.230705.001; wv) AppleWebKit/537.36 '
+                          '(KHTML,like Gecko) Version/4.0 Chrome/115.0.5790.136 Mobile '
+                          f'Safari/537.36;xsb_{p};xsb_{p};{TmuYun.app_version};native_app',
+            'X-Requested-With': TmuYun.package_name,
+            'Sec-Fetch-Site': 'same-origin',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Dest': 'empty',
+            'Referer': f'https://vapp.tmuyun.com/webFunction/userCenter?tenantId={TmuYun.app_id}&gaze_control=023&isCompleteSign=-1',
+            'Accept-Encoding': 'gzip, deflate',
+            'Accept-Language': 'zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+        }
+
     def _log(self, msg):
-        print(f"{time.strftime('%H:%M:%S', time.localtime())} 【{self.phone}】: {msg}")
-
-
-def main():
-    print("===============🔔爱海盐, 开始!===============\n")
-    accounts = get_env_list("TMUYUN_AHY")
-    print("============================================")
-    print(f"脚本执行 - 北京时间：{time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())}")
-    print("============================================")
-    print(f"===============📣共有 {len(accounts)} 个账号===============\n")
-    for index, account in enumerate(accounts):
-        print(f">>>> 开始运行第 {index + 1} 个账号\n")
-        _session_id = account.get("session_id")
-        invite = account.get("invite")
-        if invite and invite == "0":
-            invite = False
-        else:
-            invite = True
-        TmuYun(session=_session_id, is_invite=invite).run()
-
-    print("=======🔔爱海盐, 脚本运行完成!=======")
-
-
-if __name__ == "__main__":
-    main()
+        print(f"{time.strftime('%H:%M:%S', time.localtime())} 【{self.mobile}】: {msg}")

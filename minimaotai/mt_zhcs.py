@@ -1,7 +1,3 @@
-import sys
-
-from env import get_env_list
-
 """
 遵航出山-小程序茅台预约，跑脚本需要实名和绑定手机号
 @:param 环境变量: ZHCS: username=xxx;token=xxx 多账号使用&隔开，username随意，仅用作通知
@@ -9,6 +5,9 @@ from env import get_env_list
 cron: 0 9 * * 2,4,6
 new Env('茅台-遵航出山');
 """
+import sys
+
+from env import get_env_list
 
 import base64
 import datetime

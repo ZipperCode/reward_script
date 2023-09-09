@@ -1,3 +1,10 @@
+"""
+贵旅优品
+@:param 环境变量: GLYP: username=xxx;token=xxx 多账号使用&隔开，username随意，仅用作通知
+抓包: https://gw.huiqunchina.com域名下请求头中X-access-token的值
+cron: 0 9 * * 2,4,6
+new Env('茅台-贵旅优品');
+"""
 import sys
 
 from env import get_env_list
@@ -8,14 +15,6 @@ import json
 import time
 
 import requests
-
-"""
-贵旅优品
-@:param 环境变量: GLYP: username=xxx;token=xxx 多账号使用&隔开，username随意，仅用作通知
-抓包: https://gw.huiqunchina.com域名下请求头中X-access-token的值
-cron: 0 9 * * 2,4,6
-new Env('茅台-贵旅优品');
-"""
 
 GMT = "%a, %d %b %Y %H:%M:%S GMT"
 
@@ -328,6 +327,7 @@ def run():
 
     print(f"===============🔔{app}, 脚本运行完成!===============\n")
     sys.stdout.flush()
+
 
 if __name__ == "__main__":
     run()

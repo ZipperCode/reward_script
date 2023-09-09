@@ -3,7 +3,7 @@
 @:param 环境变量: HLQG: username=xxx;token=xxx 多账号使用&隔开，username随意，仅用作通知
 抓包: https://gw.huiqunchina.com域名下请求头中X-access-token的值
 cron: 0 9 * * 2,4,6
-new Env('航旅黔购');
+new Env('茅台-航旅黔购');
 """
 import sys
 

@@ -14,7 +14,7 @@ import requests
 @:param 环境变量: GLYP: username=xxx;token=xxx 多账号使用&隔开，username随意，仅用作通知
 抓包: https://gw.huiqunchina.com域名下请求头中X-access-token的值
 cron: 0 9 * * 2,4,6
-new Env('贵旅优品');
+new Env('茅台-贵旅优品');
 """
 
 GMT = "%a, %d %b %Y %H:%M:%S GMT"

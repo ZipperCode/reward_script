@@ -233,8 +233,7 @@ class MaoTai:
         cur = time.time() * 1000
 
         if cur not in range(self._act_appoint_start, self._act_appoint_end):
-            self.log("预约失败，不在活动时间")
-            return
+            self.log("警告，不在活动时间")
 
         url = "/front-manager/api/customer/promotion/appoint"
         body = {
@@ -293,6 +292,7 @@ class MaoTai:
 
     def log(self, msg):
         print(f"{to_fmt(int(time.time() * 1000))}:【{self.app_name}-{self.username}】" + msg)
+        sys.stdout.flush()
 
     def _send_msg(self, msg):
         try:

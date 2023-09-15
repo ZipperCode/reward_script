@@ -256,8 +256,12 @@ class MaoTai:
         body = {"id": act_id}
         body = json.dumps(body)
         resp = self._post(url, body)
+        if len(resp) == 0:
+            self.log("查询预约记录失败")
+            return
+
         if resp.get("code") != "10000":
-            self.log("查询预约记录失败：" + resp.get("message"))
+            self.log("查询预约记录失败：" + str(resp))
             return
         if not resp.get('data'):
             self.log("查询中签记录失败：未预约")

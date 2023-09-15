@@ -117,6 +117,8 @@ class MaoTai:
             data = resp.get("data")
             self._ak = data.get("ak")
             self._sk = data.get('sk')
+        else:
+            self.debug_log(resp)
 
     def _enable(self):
         return not self._has_error and self._ak and self._sk and len(self._ak) > 0 and len(self._sk) > 0
@@ -130,9 +132,10 @@ class MaoTai:
         }
         body = json.dumps(body)
         resp = self._post(url, body)
-        if len(resp) > 0:
+        if resp.get("code") == "10000":
             self._channel = str(resp.get("data", 5))
         else:
+            self.debug_log(resp)
             self._has_error = True
 
     def check_login(self):
@@ -155,7 +158,8 @@ class MaoTai:
                 self.log(f"账号状态: {'可用' if self._status == 1 else '不可用'}")
                 self.log(f"是否实名: {'已实名' if self._is_real_name_auth else '未实名'}")
                 self.log(f"是否绑定手机: {'已绑定' if self._phone_is_bind else '未绑定'}")
-
+        else:
+            self.debug_log(resp)
         return success
 
     def channel_activity(self):
@@ -165,6 +169,8 @@ class MaoTai:
         body = "{}"
         resp = self._post(url, body)
         if resp.get("code") != "10000":
+            self.debug_log(resp)
+            self._send_msg("获取活动失败：" + resp.get("message"))
             return None
         data = resp.get("data")
         if not data or not isinstance(data, dict):
@@ -195,16 +201,16 @@ class MaoTai:
         self._act_is_appoint = True if is_appoint == 1 else False
 
         text = f"""
-活动编号        = {act_id}
-活动名称        = {name}
-是否预约        = {"是" if (is_appoint == 1) else "否"}
-服务时间        = {to_fmt(int(sys_current_time))}
-本地时间        = {to_fmt(int(time.time() * 1000))}
-活动时间        = {to_fmt(start_time)} ~ {to_fmt(end_time)}
-预约人数        = {appoint_counts}
-预约时间        = {to_fmt(appoint_start_time)} ~ {to_fmt(appoint_end_time)}
-开奖时间        = {to_fmt(draw_time)}
-下单时间        = {to_fmt(purchase_start_time)} ~ {to_fmt(purchase_end_time)}
+        活动编号        = {act_id}
+        活动名称        = {name}
+        是否预约        = {"是" if (is_appoint == 1) else "否"}
+        服务时间        = {to_fmt(int(sys_current_time))}
+        本地时间        = {to_fmt(int(time.time() * 1000))}
+        活动时间        = {to_fmt(start_time)} ~ {to_fmt(end_time)}
+        预约人数        = {appoint_counts}
+        预约时间        = {to_fmt(appoint_start_time)} ~ {to_fmt(appoint_end_time)}
+        开奖时间        = {to_fmt(draw_time)}
+        下单时间        = {to_fmt(purchase_start_time)} ~ {to_fmt(purchase_end_time)}
         """
         self.log(text)
         return data
@@ -219,21 +225,23 @@ class MaoTai:
         resp = self._post(url, body)
 
         if resp.get("code") != "10000":
+            self.debug_log(resp)
             self.log("检查失败: 已经预约")
             return False
-        self.log(str(resp))
-        return True
+        return resp.get("data")
 
     def appoint(self, activity_id):
         if not self._enable():
             return
         if not self._check_consumer(activity_id):
+            self.log("检查预约失败，查询中签记录")
+            self.query_consumer(activity_id)
             return
 
         cur = time.time() * 1000
 
         if cur not in range(self._act_appoint_start, self._act_appoint_end):
-            self.log("警告，不在活动时间")
+            self.log("警告，不在活动时间（可能误报）")
 
         url = "/front-manager/api/customer/promotion/appoint"
         body = {
@@ -243,10 +251,44 @@ class MaoTai:
         body = json.dumps(body)
         resp = self._post(url, body)
         if resp and resp.get("code") == '10000':
-            self.log("预约成功")
-            self._send_msg("预约成功")
+            if resp.get("data"):
+                self.log("预约成功")
+                self._send_msg("预约结果：预约成功", True)
+            else:
+                self._send_msg("预约结果：预约失败，" + str(resp.get("message")))
         else:
-            self.log(str(resp.get("message")))
+            self._send_msg("预约结果：预约失败，" + str(resp.get("message")))
+            self.log("预约失败：" + str(resp.get("message")))
+
+    def query_consumer(self, act_id):
+        url = "/api/customer/promotion/queryActivityIsDraw"
+        body = {"id": act_id}
+        body = json.dumps(body)
+        resp = self._post(url, body)
+        if resp.get("code") != "10000":
+            self.log("查询预约记录失败：" + resp.get("message"))
+            return
+        if not resp.get('data'):
+            self.log("查询中签记录失败：未预约")
+            return
+        url = "/api/customer/promotion/getWinningCustomers"
+        body = {"activityId": act_id}
+        body = json.dumps(body)
+        resp = self._post(url, body)
+        if resp.get("code") != "10000" or not resp.get('data'):
+            self.log("查询中签记录失败：" + resp.get("message"))
+            return
+
+        self._send_msg("查询到中签结果，请前往小程序查看", True)
+
+    def query_lottery_record(self):
+        url = "/api/customer/promotion/queryLotteryRecord"
+        body = {"page": {"pageNo": 1, "pageSize": 20}}
+        body = json.dumps(body)
+        resp = self._post(url, body)
+        if resp.get("code") == "10000" and resp.get("data"):
+            if len(resp.get("data").get('list')) > 0:
+                self._send_msg("查询中签记录数据\n" + resp.get("data"))
 
     def _post(self, url: str, body: str) -> dict:
         headers = {}
@@ -276,32 +318,40 @@ class MaoTai:
         is_login = self.check_login()
         if not is_login:
             self.log("token失效，请重新获取")
-            self._send_msg("token失效，请重新获取")
+            self._send_msg("token失效，请重新获取", True)
             return
 
         if not self._is_real_name_auth:
             self.log("账号未实名，请先处理实名")
-            self._send_msg("账号未实名，请先处理实名")
+            self._send_msg("账号未实名，请先处理实名", True)
             return
         if not self._phone_is_bind:
             self.log("账号未绑定手机，请先绑定手机")
-            self._send_msg("账号未绑定手机，请先绑定手机")
+            self._send_msg("账号未绑定手机，请先绑定手机", True)
             return
-        self.channel_activity()
-        self.appoint(self._act_id)
+        if self.channel_activity():
+            self.appoint(self._act_id)
 
     def log(self, msg):
         print(f"{to_fmt(int(time.time() * 1000))}:【{self.app_name}-{self.username}】" + msg)
         sys.stdout.flush()
 
-    def _send_msg(self, msg):
+    def debug_log(self, msg):
+        import os
+        if os.environ.get("script_debug") == "1":
+            return
+        print(f"【{self.app_name}-{self.username}】" + str(msg))
+        sys.stdout.flush()
+
+    def _send_msg(self, msg, important=False):
         try:
+            print("开始推送>>>")
+            sys.stdout.flush()
             from notify import send
-            send(f"{self.app_name}-{self.username}", msg)
+            send(f"{'【重要消息】' if important else ''}{self.app_name}-{self.username}", msg)
         except Exception as e:
             print(e)
             print(f"通知失败，通知模块不存在: {msg}")
-
 
 class Lgkx(MaoTai):
 
